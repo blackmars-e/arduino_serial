@@ -1,25 +1,47 @@
-import serial
-import time
+import logging
 import socket
+import serial
+import os
 
-PORT = "/dev/ttyUSB0"
-BAUD = 9600
+# Debugging aktivieren (Optional, über ENV-Variable DEBUG=true)
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
-def send(cmd):
-    with serial.Serial(PORT, BAUD, timeout=1) as ser:
-        ser.write((cmd+"\n").encode())
-        time.sleep(0.2)
+# Logging konfigurieren
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-# TCP server auf Port 7070
-sock = socket.socket()
-sock.bind(("0.0.0.0", 7070))
-sock.listen(5)
-print("Arduino Serial Add-on ready")
+logging.info("Arduino Serial Add-on gestartet...")
 
-while True:
-    conn, addr = sock.accept()
-    data = conn.recv(64).decode().strip()
-    if data:
-        print("Sending:", data)
-        send(data)
-    conn.close()
+# TCP Server für Befehle
+HOST = '0.0.0.0'  # alles hören
+PORT = 7070
+
+try:
+    ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+    logging.info("Serielle Verbindung zu /dev/ttyUSB0 hergestellt")
+except Exception as e:
+    logging.error(f"Fehler beim Öffnen von /dev/ttyUSB0: {e}")
+    ser = None
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.bind((HOST, PORT))
+    s.listen()
+    logging.info(f"TCP Server hört auf {HOST}:{PORT}")
+
+    while True:
+        conn, addr = s.accept()
+        with conn:
+            logging.info(f"Verbindung von {addr}")
+            data = conn.recv(1024)
+            if data:
+                command = data.decode().strip()
+                logging.info(f"Empfangen: {command}")
+
+                if ser:
+                    try:
+                        ser.write(data)
+                        logging.info(f"An Arduino gesendet: {command}")
+                    except Exception as e:
+                        logging.error(f"Fehler beim Schreiben an Arduino: {e}")
+                
+                if DEBUG:
+                    logging.info(f"DEBUG: Befehl {command} verarbeitet")
