@@ -1,11 +1,24 @@
+# Base image
 ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-base:latest
-FROM $BUILD_FROM
+FROM ${BUILD_FROM}
 
-# Install Python + pyserial
-RUN apk add --no-cache python3 py3-pip py3-serial
+# Set working directory
+WORKDIR /app
 
-# Copy the script
+# Install Python and venv
+RUN apk add --no-cache python3 py3-pip python3-venv
+
+# Create virtual environment
+RUN python3 -m venv /opt/venv
+
+# Activate venv and install pyserial
+RUN /bin/sh -c "source /opt/venv/bin/activate && pip install --no-cache-dir pyserial"
+
+# Copy add-on script
 COPY run.py /run.py
 
-# Start the Python script
-CMD ["python3", "/run.py"]
+# Set environment variable for Python
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Default command
+CMD [ "python3", "/run.py" ]
