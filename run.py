@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logging.info("Arduino Serial Add-on gestartet...")
 
 # TCP Server für Befehle
-HOST = '0.0.0.0'  # alles hören
+HOST = '127.0.0.1'  # alles hören
 PORT = 7070
 
 try:
