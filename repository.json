@@ -1,0 +1,12 @@
+{
+  "name": "My Private Add-ons",
+  "slug": "my-addons",
+  "addons": [
+    {
+      "name": "Arduino Serial Controller",
+      "description": "Send serial commands to Arduino via USB",
+      "url": "https://github.com/blackmars-e/arduino_serial",
+      "arch": ["amd64","aarch64","armv7"]
+    }
+  ]
+}
