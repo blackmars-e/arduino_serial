@@ -2,46 +2,71 @@ import logging
 import socket
 import serial
 import os
+import time
 
-# Debugging aktivieren (Optional, über ENV-Variable DEBUG=true)
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
-# Logging konfigurieren
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-logging.info("Arduino Serial Add-on gestartet...")
-
-# TCP Server für Befehle
-HOST = '0.0.0.0'  # alles hören
+HOST = "0.0.0.0"
 PORT = 7070
 
-try:
-    ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
-    logging.info("Serielle Verbindung zu /dev/ttyUSB0 hergestellt")
-except Exception as e:
-    logging.error(f"Fehler beim Öffnen von /dev/ttyUSB0: {e}")
-    ser = None
+
+def open_serial():
+    try:
+        ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+        logging.info("Serielle Verbindung hergestellt")
+        return ser
+    except Exception as e:
+        logging.error(f"Serielle Verbindung fehlgeschlagen: {e}")
+        return None
+
+
+ser = open_serial()
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind((HOST, PORT))
     s.listen()
-    logging.info(f"TCP Server hört auf {HOST}:{PORT}")
+    s.settimeout(5)
+
+    logging.info(f"TCP Server aktiv auf {HOST}:{PORT}")
 
     while True:
-        conn, addr = s.accept()
-        with conn:
-            logging.info(f"Verbindung von {addr}")
-            data = conn.recv(1024)
-            if data:
-                command = data.decode().strip()
-                logging.info(f"Empfangen: {command}")
+        try:
+            conn, addr = s.accept()
+        except socket.timeout:
+            # Watchdog-Pulse
+            logging.debug("Heartbeat")
+            continue
 
-                if ser:
+        with conn:
+            conn.settimeout(5)
+            logging.info(f"Verbindung von {addr}")
+
+            try:
+                data = conn.recv(1024)
+            except socket.timeout:
+                continue
+
+            if not data:
+                continue
+
+            command = data.decode(errors="ignore").strip()
+            logging.info(f"Empfangen: {command}")
+
+            if ser:
+                try:
+                    ser.write(data)
+                    ser.flush()
+                except Exception as e:
+                    logging.error(f"USB Fehler -> Neuverbinden: {e}")
                     try:
-                        ser.write(data)
-                        logging.info(f"An Arduino gesendet: {command}")
-                    except Exception as e:
-                        logging.error(f"Fehler beim Schreiben an Arduino: {e}")
-                
-                if DEBUG:
-                    logging.info(f"DEBUG: Befehl {command} verarbeitet")
+                        ser.close()
+                    except:
+                        pass
+
+                    time.sleep(1)
+                    ser = open_serial()
+
+            if DEBUG:
+                logging.info(f"DEBUG verarbeitet: {command}")
