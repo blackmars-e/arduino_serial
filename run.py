@@ -2,7 +2,6 @@ import asyncio
 import serial
 import logging
 import os
-import time
 
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 PORT = 7070
@@ -13,6 +12,7 @@ logging.basicConfig(
 )
 
 ser = None
+serial_queue = asyncio.Queue()
 
 
 # ---------- SERIAL HANDLING ----------
@@ -30,15 +30,16 @@ async def open_serial():
             await asyncio.sleep(3)
 
 
-async def write_serial(data):
+async def write_serial(data: bytes):
     global ser
 
     if not ser:
         await open_serial()
 
     try:
-        ser.write(data)
-        ser.flush()
+        # Non-blocking write
+        await asyncio.to_thread(ser.write, data)
+        await asyncio.to_thread(ser.flush)
     except Exception as e:
         logging.error(f"🚨 USB Fehler: {e}")
         try:
@@ -46,6 +47,13 @@ async def write_serial(data):
         except:
             pass
         ser = None
+
+
+async def serial_worker():
+    while True:
+        data = await serial_queue.get()
+        await write_serial(data)
+        serial_queue.task_done()
 
 
 # ---------- TCP SERVER ----------
@@ -64,14 +72,15 @@ async def handle_client(reader, writer):
             command = data.decode(errors='ignore').strip()
             logging.info(f"➡️  Empfangen: {command}")
 
-            await write_serial(data)
+            # Zeilenende sicherstellen
+            data_to_send = (command + '\n').encode()
+            await serial_queue.put(data_to_send)
 
             if DEBUG:
                 logging.info(f"DEBUG verarbeitet: {command}")
 
     except asyncio.TimeoutError:
         logging.warning("⏱️ Client Timeout")
-
     except Exception as e:
         logging.error(f"TCP Fehler: {e}")
 
@@ -93,6 +102,9 @@ async def heartbeat():
 async def main():
 
     await open_serial()
+
+    # Starte Serial-Worker
+    asyncio.create_task(serial_worker())
 
     server = await asyncio.start_server(
         handle_client,
