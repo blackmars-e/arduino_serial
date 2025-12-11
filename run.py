@@ -1,5 +1,5 @@
 import asyncio
-import serial_asyncio
+import serial
 import logging
 import os
 import time
@@ -13,9 +13,12 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 PORT = 7070
 SERIAL_DEVICE = "/dev/ttyUSB0"
 SERIAL_BAUD = 9600
+SERIAL_TIMEOUT = 1
 
 QUEUE_SIZE = 100
-BURST_MERGE_MS = 50           # Befehle innerhalb von 50ms mit gleichem Inhalt werden gemerged
+BURST_MERGE_MS = 50
+SERIAL_WRITE_TIMEOUT = 2
+
 WATCHDOG_INTERVAL = 5
 
 # -------------------------------------------------
@@ -31,11 +34,11 @@ logging.basicConfig(
 # GLOBALS
 # -------------------------------------------------
 
-serial_writer = None
+ser = None
 serial_queue = asyncio.Queue(maxsize=QUEUE_SIZE)
 
-last_command = None
-last_command_time = 0
+last_cmd = None
+last_cmd_time = 0
 
 
 # -------------------------------------------------
@@ -43,17 +46,16 @@ last_command_time = 0
 # -------------------------------------------------
 
 async def open_serial():
-    """Öffnet den Serial-Port async & robust mit Retry."""
-    global serial_writer
+    """Öffnet Serial robust mit Retry."""
+    global ser
 
     while True:
         try:
-            reader, writer = await serial_asyncio.open_serial_connection(
-                url=SERIAL_DEVICE,
-                baudrate=SERIAL_BAUD
+            ser = serial.Serial(
+                SERIAL_DEVICE,
+                SERIAL_BAUD,
+                timeout=SERIAL_TIMEOUT
             )
-
-            serial_writer = writer
             logging.info("✅ Seriell verbunden")
             return
 
@@ -62,27 +64,47 @@ async def open_serial():
             await asyncio.sleep(2)
 
 
-async def serial_worker():
-    """Nimmt Befehle aus der Queue und sendet sie ans Gerät."""
-    global serial_writer
+async def write_serial_async(data: bytes):
+    """Serial schreiben mit echtem Timeout (Thread wird abgebrochen, wenn er hängt)."""
+    global ser
 
+    if ser is None or not ser.is_open:
+        await open_serial()
+
+    try:
+        # write + flush parallel im Thread
+        await asyncio.wait_for(
+            asyncio.to_thread(ser.write, data),
+            timeout=SERIAL_WRITE_TIMEOUT
+        )
+        await asyncio.wait_for(
+            asyncio.to_thread(ser.flush),
+            timeout=SERIAL_WRITE_TIMEOUT
+        )
+
+        logging.info(f"✉️ Serial SEND: {data!r}")
+
+    except Exception as e:
+        logging.error(f"🚨 Serial Write Fehler: {e}")
+
+        try:
+            ser.close()
+        except:
+            pass
+
+        ser = None
+
+
+async def serial_worker():
     logging.info("👷 Serial Worker gestartet")
 
     while True:
-        command = await serial_queue.get()
+        data = await serial_queue.get()
 
         try:
-            if serial_writer is None:
-                await open_serial()
-
-            serial_writer.write(command)
-            await serial_writer.drain()
-
-            logging.info(f"✉️ Serial SEND: {command!r}")
-
+            await write_serial_async(data)
         except Exception as e:
-            logging.error(f"🚨 Serial Fehler: {e}")
-            serial_writer = None
+            logging.error(f"🚫 Serial Worker Fehler: {e}")
 
         finally:
             serial_queue.task_done()
@@ -93,7 +115,7 @@ async def serial_worker():
 # -------------------------------------------------
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-    global last_command, last_command_time
+    global last_cmd, last_cmd_time
 
     addr = writer.get_extra_info("peername")
     logging.info(f"🔌 Client verbunden: {addr}")
@@ -109,25 +131,25 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             if not data:
                 break
 
-            command = data.decode(errors="ignore").strip()
-            if not command:
+            cmd = data.decode(errors="ignore").strip()
+            if not cmd:
                 continue
 
             now = time.time() * 1000
 
-            # Burst-Merging: gleiche Commands / kurze Zeit → skip
-            if command == last_command and now - last_command_time < BURST_MERGE_MS:
-                logging.debug(f"⏭️ Burst-Merge skip: {command}")
+            # Burst-Merge
+            if cmd == last_cmd and (now - last_cmd_time) < BURST_MERGE_MS:
+                logging.debug(f"⏭️ Burst-Merge skip: {cmd}")
                 continue
 
-            last_command = command
-            last_command_time = now
+            last_cmd = cmd
+            last_cmd_time = now
 
-            logging.info(f"➡️ Empfangen: {command}")
+            logging.info(f"➡️ Empfangen: {cmd}")
 
-            payload = (command + "\n").encode()
+            payload = (cmd + "\n").encode()
 
-            # Queue mit Priorität (neue bevorzugt)
+            # Queue-Schutz: neue Befehle haben Priorität
             if serial_queue.full():
                 _ = await serial_queue.get()
                 serial_queue.task_done()
@@ -149,14 +171,17 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 # -------------------------------------------------
 
 async def watchdog():
+    global ser
+
     while True:
         try:
-            qn = serial_queue.qsize()
-            if qn > QUEUE_SIZE * 0.8:
-                logging.warning(f"⚠️ Queue fast voll ({qn}/{QUEUE_SIZE})")
+            q = serial_queue.qsize()
 
-            if serial_writer is None:
-                logging.warning("⚠️ Serial nicht verbunden → reopen")
+            if q > QUEUE_SIZE * 0.8:
+                logging.warning(f"⚠️ Queue fast voll ({q}/{QUEUE_SIZE})")
+
+            if ser and not ser.is_open:
+                logging.error("⚠️ Serial geschlossen → reopen")
                 await open_serial()
 
         except Exception as e:
