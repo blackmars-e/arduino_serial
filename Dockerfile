@@ -1,20 +1,15 @@
-
-FROM ghcr.io/home-assistant/aarch64-base:15.0.7
-
+ARG BUILD_FROM
+FROM $BUILD_FROM
 
 WORKDIR /app
 
-# Install Python system packages
-RUN apk add --no-cache python3 py3-pip
+# Python ist bereits im Base-Image enthalten
+# pip ebenfalls – KEIN apk add python3 nötig
 
-# Create virtual environment
-RUN python3 -m venv /opt/venv
+# pyserial installieren – HA-konform (PEP 668!)
+RUN pip install --no-cache-dir --break-system-packages pyserial==3.5
 
-# Activate venv and install pyserial
-RUN /opt/venv/bin/pip install --upgrade pip pyserial
-
-# Copy your script
 COPY run.py /app/run.py
 
-# Use the virtual environment when running
-ENTRYPOINT ["/opt/venv/bin/python", "/app/run.py"]
+CMD ["python3", "/app/run.py"]
+
