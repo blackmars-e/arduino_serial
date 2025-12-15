@@ -5,12 +5,8 @@
   "description": "Send serial commands to Arduino via USB",
   "startup": "services",
   "boot": "auto",
+  "watchdog": false,
   "memory": 128,
-  "host_network": false,
-  "devices": [
-    "/dev/ttyUSB0"
-  ],
-  "options": {},
-  "schema": {},
-  "arch": ["armv7", "aarch64", "amd64"]
+  "devices": ["/dev/ttyUSB0"],
+  "arch": ["aarch64", "amd64", "armv7"]
 }
