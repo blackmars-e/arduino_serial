@@ -1,4 +1,5 @@
-FROM ghcr.io/home-assistant/aarch64-base:latest
+FROM ghcr.io/home-assistant/aarch64-base:15.0.7
+
 
 WORKDIR /app
 
