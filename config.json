@@ -1,11 +1,12 @@
 {
   "name": "Arduino Serial Controller",
-  "version": "1.2",
+  "version": "1.2.1",
   "slug": "arduino_serial",
   "description": "Send serial commands to Arduino via USB",
   "startup": "services",
   "boot": "auto",
-  "host_network": true,
+  "memory": 128,
+  "host_network": false,
   "devices": [
     "/dev/ttyUSB0"
   ],
