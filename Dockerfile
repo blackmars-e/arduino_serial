@@ -1,9 +1,10 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-python-base:latest
-FROM ${BUILD_FROM}
+# Dockerfile
+
+FROM base
 
 WORKDIR /app
 
-# pyserial installieren
+# Installiere pyserial mithilfe des nun vorhandenen python3
 RUN python3 -m pip install --no-cache-dir pyserial==3.5
 
 COPY run.py /app/run.py
