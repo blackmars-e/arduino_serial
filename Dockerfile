@@ -1,6 +1,6 @@
-# Dockerfile
-
-FROM base
+# Dockerfile Workaround
+# Verwenden Sie das Python-Basis-Image direkt für Ihre aarch64 Architektur
+FROM ghcr.io/home-assistant/aarch64-python-base:latest
 
 WORKDIR /app
 
