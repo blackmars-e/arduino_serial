@@ -1,5 +1,5 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-python-base:latest
-FROM ${BUILD_FROM}  # <-- Wichtig: Hier die Variable verwenden!
+FROM ${BUILD_FROM}
 
 WORKDIR /app
 
