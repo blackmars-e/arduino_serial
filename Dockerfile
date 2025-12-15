@@ -3,11 +3,11 @@ FROM $BUILD_FROM
 
 WORKDIR /app
 
-# Python + pip (Python ist meist schon da, pip nicht immer)
+# Python + pip
 RUN apk add --no-cache python3 py3-pip
 
-# pyserial via pip (leichtgewichtig, ok für HA)
-RUN pip3 install --no-cache-dir pyserial==3.5
+# pyserial installieren (PEP 668 korrekt umgehen)
+RUN pip3 install --no-cache-dir --break-system-packages pyserial==3.5
 
 # Script kopieren
 COPY run.py /app/run.py
