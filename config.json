@@ -6,7 +6,6 @@
   "startup": "services",
   "boot": "auto",
   "host_network": true,
-  "memory": 128,
   "devices": [
     "/dev/ttyUSB0"
   ],
