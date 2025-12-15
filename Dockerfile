@@ -1,12 +1,18 @@
-# Dockerfile Workaround
-# Verwenden Sie das Python-Basis-Image direkt für Ihre aarch64 Architektur
-FROM ghcr.io/home-assistant/aarch64-python-base:latest
+FROM ghcr.io/home-assistant/aarch64-base:latest
 
 WORKDIR /app
 
-# Installiere pyserial mithilfe des nun vorhandenen python3
-RUN python3 -m pip install --no-cache-dir pyserial==3.5
+# Install Python system packages
+RUN apk add --no-cache python3 py3-pip
 
+# Create virtual environment
+RUN python3 -m venv /opt/venv
+
+# Activate venv and install pyserial
+RUN /opt/venv/bin/pip install --upgrade pip pyserial
+
+# Copy your script
 COPY run.py /app/run.py
 
-CMD ["python3", "/app/run.py"]
+# Use the virtual environment when running
+ENTRYPOINT ["/opt/venv/bin/python", "/app/run.py"]
