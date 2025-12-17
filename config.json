@@ -6,9 +6,9 @@
   "startup": "services",
   "boot": "auto",
   "host_network": true,
-  "devices": [
-    "/dev/ttyUSB0"
-  ],
+  "privileged": ["SYS_RAWIO"],
+  "full_access": true,
+  "devices": ["/dev/ttyUSB0:/dev/ttyUSB0"],
   "options": {},
   "schema": {},
   "arch": ["armv7", "aarch64", "amd64"]
