@@ -1,22 +1,24 @@
-# Wir nutzen die Variable BUILD_FROM, damit Home Assistant automatisch
-# das richtige Base-Image für deinen Pi (armv7 oder aarch64) wählt.
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-WORKDIR /app
-
-# Python und Pip installieren
+# Installiere Pakete
 RUN apk add --no-cache python3 py3-pip
 
-# Virtual Environment erstellen (Best Practice bei Alpine Linux)
+WORKDIR /app
+
+# Venv erstellen
 RUN python3 -m venv /opt/venv
 
-# PySerial im venv installieren
+# Requirements installieren
 RUN /opt/venv/bin/pip install --upgrade pip pyserial
 
-# Script kopieren
+# Kopiere Dateien
 COPY run.py /app/run.py
+COPY run.sh /app/run.sh
 
-# WICHTIG: CMD verwenden statt ENTRYPOINT für S6-Overlay Support
-# WICHTIG: "-u" Flag nutzen, sonst bleiben die Logs leer bei einem Crash!
-CMD ["/opt/venv/bin/python3", "-u", "/app/run.py"]
+# Mache das Start-Skript ausführbar
+RUN chmod a+x /app/run.sh
+
+# WICHTIG: Nicht ENTRYPOINT überschreiben!
+# Wir nutzen CMD, damit das S6 Init-System des Base-Images aktiv bleibt.
+CMD [ "/app/run.sh" ]
