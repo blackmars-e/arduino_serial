@@ -1,23 +1,23 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# Basis-Pakete installieren
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    sed
+# Installation von Python und sed zum Fixen der Zeilenenden
+RUN apk add --no-cache python3 py3-pip sed
 
 WORKDIR /app
 
-# Pyserial installieren (break-system-packages ist nötig in neuen Alpine-Versionen)
+# Pyserial installieren
 RUN pip3 install --no-cache-dir --break-system-packages pyserial
 
 # Dateien kopieren
 COPY run.py .
 COPY run.sh .
 
-# Zeilenenden fixen (wichtig für Windows-Nutzer) & Rechte setzen
-RUN sed -i 's/\r$//' run.sh && chmod a+x run.sh
+# KRITISCH: Erzwinge Linux-Zeilenenden und mache das Script ausführbar
+RUN sed -i 's/\r$//' /app/run.sh && \
+    sed -i 's/\r$//' /app/run.py && \
+    chmod +x /app/run.sh
 
-# Start-Kommando
-CMD [ "/app/run.sh" ]
+# Starte über das Shell-Script
+ENTRYPOINT ["/usr/bin/env"]
+CMD ["sh", "/app/run.sh"]
