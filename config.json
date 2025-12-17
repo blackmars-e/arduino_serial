@@ -1,6 +1,6 @@
 {
   "name": "Arduino Serial Controller",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "slug": "arduino_serial",
   "description": "Send serial commands to Arduino via USB",
   "startup": "services",
@@ -8,9 +8,9 @@
   "host_network": true,
   "apparmor": false,
   "privileged": ["SYS_RAWIO"],
-  "devices": [
-    "/dev/ttyUSB0:/dev/ttyUSB0"
-  ],
+  "full_access": true,
+  "devices": [],
+  "auto_uart": true,
   "options": {},
   "schema": {},
   "arch": ["armv7", "aarch64", "amd64"]
