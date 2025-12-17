@@ -1,17 +1,26 @@
 {
   "name": "Arduino Serial Controller",
-  "version": "2.5.2",
+  "version": "2.5.3",
   "slug": "arduino_serial",
   "description": "Send serial commands to Arduino via USB",
   "startup": "services",
   "boot": "auto",
-  "host_network": true,
+  "host_network": false,
   "apparmor": false,
   "privileged": ["SYS_RAWIO"],
   "full_access": true,
-  "devices": [],
+  "devices": ["/dev/ttyUSB0:/dev/ttyUSB0"],
   "auto_uart": true,
-  "options": {},
-  "schema": {},
+  "ports": {
+    "7070/tcp": 7070
+  },
+  "options": {
+    "SERIAL_DEVICE": "/dev/ttyUSB0",
+    "SERIAL_BAUD": 9600
+  },
+  "schema": {
+    "SERIAL_DEVICE": "str",
+    "SERIAL_BAUD": "int"
+  },
   "arch": ["armv7", "aarch64", "amd64"]
 }
