@@ -1,24 +1,19 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# Installiere Pakete
-RUN apk add --no-cache python3 py3-pip
+# Pakete installieren
+RUN apk add --no-cache \
+    python3 \
+    py3-pip
 
 WORKDIR /app
 
-# Venv erstellen
-RUN python3 -m venv /opt/venv
+# Direkt installieren ohne Venv (im Container oft stabiler für Add-ons)
+RUN pip3 install --no-cache-dir --break-system-packages pyserial
 
-# Requirements installieren
-RUN /opt/venv/bin/pip install --upgrade pip pyserial
+COPY run.py .
+COPY run.sh .
 
-# Kopiere Dateien
-COPY run.py /app/run.py
-COPY run.sh /app/run.sh
+RUN sed -i 's/\r$//' run.sh && chmod a+x run.sh
 
-# Mache das Start-Skript ausführbar
-RUN chmod a+x /app/run.sh
-
-# WICHTIG: Nicht ENTRYPOINT überschreiben!
-# Wir nutzen CMD, damit das S6 Init-System des Base-Images aktiv bleibt.
 CMD [ "/app/run.sh" ]
