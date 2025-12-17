@@ -1,19 +1,17 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# Pakete installieren
+# Installiere Abhängigkeiten
 RUN apk add --no-cache python3 py3-pip
 
-WORKDIR /app
-
-# Pyserial direkt global installieren
+# Installiere pyserial global
 RUN pip3 install --no-cache-dir --break-system-packages pyserial
 
-# Dateien kopieren
+WORKDIR /app
 COPY run.py .
 COPY run.sh .
 
-# Zeilenenden korrigieren (WICHTIG falls du auf Windows arbeitest)
-RUN sed -i 's/\r$//' run.sh && chmod a+x run.sh
+RUN chmod a+x /app/run.sh
 
+# WICHTIG: Nutze S6-Overlay korrekt
 CMD [ "/app/run.sh" ]
